@@ -1,10 +1,15 @@
 #include <glib.h>
 #include "contact.h"
 
-void print_contact(Contact *contact) {
-    g_print("Name: %s, Phone Number: %s\n",
-            contact_get_name(contact),
-            contact_get_phone_number(contact));
+// Fungsi untuk mencari kontak berdasarkan nama
+Contact* find_contact_by_name(GList *contact_list, const gchar *name) {
+    for (GList *l = contact_list; l != NULL; l = l->next) {
+        Contact *contact = (Contact*)l->data;
+        if (g_strcmp0(contact_get_name(contact), name) == 0) {
+            return contact;  // Kontak ditemukan
+        }
+    }
+    return NULL;  // Kontak tidak ditemukan
 }
 
 int main() {
@@ -16,26 +21,16 @@ int main() {
     contact_list = g_list_append(contact_list, alice);
     contact_list = g_list_append(contact_list, bob);
 
-    // Menampilkan semua kontak
-    g_print("Contact List:\n");
-    for (GList *l = contact_list; l != NULL; l = l->next) {
-        Contact *contact = (Contact*)l->data;  // Casting langsung
-        print_contact(contact);
-    }
-
-    // Menghapus kontak
-    contact_list = g_list_remove(contact_list, alice);
-    g_object_unref(alice);
-
-    // Menampilkan kontak setelah penghapusan
-    g_print("\nAfter removing Alice:\n");
-    for (GList *l = contact_list; l != NULL; l = l->next) {
-        Contact *contact = (Contact*)l->data;  // Casting langsung
-        print_contact(contact);
+    // Mencari kontak berdasarkan nama
+    const gchar *search_name = "Alice";
+    Contact *found_contact = find_contact_by_name(contact_list, search_name);
+    if (found_contact != NULL) {
+        g_print("Found contact: %s, Phone: %s\n", contact_get_name(found_contact), contact_get_phone_number(found_contact));
+    } else {
+        g_print("Contact %s not found.\n", search_name);
     }
 
     // Membersihkan sisa daftar kontak
     g_list_free_full(contact_list, g_object_unref);
-
     return 0;
 }
