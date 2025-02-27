@@ -1,6 +1,7 @@
 #include <glib.h>
 #include <stdio.h>
 #include "contact.h"
+#include "storage.h"
 
 // Fungsi untuk mencari kontak berdasarkan nama
 Contact* find_contact_by_name(GList *contact_list, const gchar *name) {
@@ -57,6 +58,9 @@ int main() {
     int choice;
     gchar name[100], phone[20];
     
+    // Memuat kontak dari file CSV saat aplikasi dimulai
+    load_contacts_from_file(&contact_list, "contacts.csv");
+
     // Menu interaktif untuk pengguna
     while (1) {
         g_print("\nContact Manager:\n");
@@ -65,7 +69,8 @@ int main() {
         g_print("3. Find Contact by Phone Number\n");
         g_print("4. Delete Contact\n");
         g_print("5. Display All Contacts\n");
-        g_print("6. Exit\n");
+        g_print("6. Save Contacts to File\n");
+        g_print("7. Exit\n");
         g_print("Enter your choice: ");
         scanf("%d", &choice);
         
@@ -112,7 +117,11 @@ int main() {
                 display_contacts(contact_list);
                 break;
 
-            case 6:  // Exit
+            case 6:  // Save Contacts to File
+                save_contacts_to_file(contact_list, "contacts.csv");
+                break;
+
+            case 7:  // Exit
                 g_list_free_full(contact_list, g_object_unref);
                 g_print("Exiting program.\n");
                 return 0;
