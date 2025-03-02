@@ -1,135 +1,123 @@
+#include <gtk/gtk.h>
 #include <glib.h>
-#include <stdio.h>
 #include "contact.h"
 #include "storage.h"
 
-// Fungsi untuk mencari kontak berdasarkan nama
-Contact* find_contact_by_name(GList *contact_list, const gchar *name) {
+
+GList *contact_list = NULL;
+GtkWidget *listbox;
+GtkWidget *name_entry;
+GtkWidget *phone_entry;
+
+
+void refresh_contact_list() {
+    gtk_container_foreach(GTK_CONTAINER(listbox), (GtkCallback)gtk_widget_destroy, NULL);
+
     for (GList *l = contact_list; l != NULL; l = l->next) {
-        Contact *contact = (Contact*)l->data;
-        if (g_strcmp0(contact_get_name(contact), name) == 0) {
-            return contact;  // Kontak ditemukan
+        Contact *contact = (Contact *)l->data;
+        GtkWidget *row = gtk_label_new(g_strdup_printf("%s - %s", contact_get_name(contact), contact_get_phone_number(contact)));
+        gtk_list_box_insert(GTK_LIST_BOX(listbox), row, -1);
+    }
+
+    gtk_widget_show_all(listbox);
+}
+
+
+static void on_add_contact(GtkWidget *widget, gpointer data) {
+    const gchar *name = gtk_entry_get_text(GTK_ENTRY(name_entry));
+    const gchar *phone_number = gtk_entry_get_text(GTK_ENTRY(phone_entry));
+
+    if (g_strcmp0(name, "") != 0 && g_strcmp0(phone_number, "") != 0) {
+        Contact *new_contact = contact_new(name, phone_number);
+        contact_list = g_list_append(contact_list, new_contact);
+        refresh_contact_list();
+
+        
+        gtk_entry_set_text(GTK_ENTRY(name_entry), "");
+        gtk_entry_set_text(GTK_ENTRY(phone_entry), "");
+    }
+}
+
+static void on_save_contacts(GtkWidget *widget, gpointer data) {
+    save_contacts_to_file(contact_list, "contacts.csv");
+    g_print("Contacts saved to file.\n");
+}
+
+
+static void on_delete_contact(GtkWidget *widget, gpointer data) {
+    GtkListBoxRow *selected_row = gtk_list_box_get_selected_row(GTK_LIST_BOX(listbox));
+    if (selected_row) {
+        GtkWidget *label = gtk_bin_get_child(GTK_BIN(selected_row));
+        const gchar *contact_info = gtk_label_get_text(GTK_LABEL(label));
+
+        gchar **split = g_strsplit(contact_info, " - ", 2);
+        const gchar *name = split[0];
+
+        
+        GList *l = contact_list;
+        while (l != NULL) {
+            Contact *contact = (Contact *)l->data;
+            if (g_strcmp0(contact_get_name(contact), name) == 0) {
+                contact_list = g_list_remove(contact_list, contact);
+                g_object_unref(contact);
+                break;
+            }
+            l = l->next;
         }
-    }
-    return NULL;  // Kontak tidak ditemukan
-}
 
-// Fungsi untuk mencari kontak berdasarkan nomor telepon
-Contact* find_contact_by_phone(GList *contact_list, const gchar *phone_number) {
-    for (GList *l = contact_list; l != NULL; l = l->next) {
-        Contact *contact = (Contact*)l->data;
-        if (g_strcmp0(contact_get_phone_number(contact), phone_number) == 0) {
-            return contact;  // Kontak ditemukan
-        }
-    }
-    return NULL;  // Kontak tidak ditemukan
-}
-
-void display_contacts(GList *contact_list) {
-    if (g_list_length(contact_list) == 0) {
-        g_print("No contacts available.\n");
-        return;
-    }
-
-    g_print("Contacts List:\n");
-    for (GList *l = contact_list; l != NULL; l = l->next) {
-        Contact *contact = (Contact*)l->data;
-        g_print("Name: %s, Phone: %s\n", contact_get_name(contact), contact_get_phone_number(contact));
+        refresh_contact_list();
+        g_strfreev(split);
     }
 }
 
-void delete_contact(GList **contact_list, const gchar *name) {
-    GList *l = g_list_first(*contact_list);
-    while (l != NULL) {
-        Contact *contact = (Contact*)l->data;
-        if (g_strcmp0(contact_get_name(contact), name) == 0) {
-            *contact_list = g_list_remove(*contact_list, contact);
-            g_object_unref(contact);
-            g_print("Contact %s deleted successfully.\n", name);
-            return;
-        }
-        l = l->next;
-    }
-    g_print("Contact %s not found.\n", name);
-}
 
-int main() {
-    GList *contact_list = NULL;
-    int choice;
-    gchar name[100], phone[20];
-    
-    // Memuat kontak dari file CSV saat aplikasi dimulai
+int main(int argc, char *argv[]) {
+    gtk_init(&argc, &argv);
+
+
     load_contacts_from_file(&contact_list, "contacts.csv");
 
-    // Menu interaktif untuk pengguna
-    while (1) {
-        g_print("\nContact Manager:\n");
-        g_print("1. Add Contact\n");
-        g_print("2. Find Contact by Name\n");
-        g_print("3. Find Contact by Phone Number\n");
-        g_print("4. Delete Contact\n");
-        g_print("5. Display All Contacts\n");
-        g_print("6. Save Contacts to File\n");
-        g_print("7. Exit\n");
-        g_print("Enter your choice: ");
-        scanf("%d", &choice);
-        
-        switch (choice) {
-            case 1:  // Add Contact
-                g_print("Enter name: ");
-                scanf("%s", name);
-                g_print("Enter phone number: ");
-                scanf("%s", phone);
-                Contact *new_contact = contact_new(name, phone);
-                contact_list = g_list_append(contact_list, new_contact);
-                g_print("Contact added: %s, %s\n", name, phone);
-                break;
 
-            case 2:  // Find Contact by Name
-                g_print("Enter name to search: ");
-                scanf("%s", name);
-                Contact *found_contact = find_contact_by_name(contact_list, name);
-                if (found_contact != NULL) {
-                    g_print("Found contact: %s, Phone: %s\n", contact_get_name(found_contact), contact_get_phone_number(found_contact));
-                } else {
-                    g_print("Contact %s not found.\n", name);
-                }
-                break;
+    GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(window), "Contact Manager");
+    gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
+    g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
-            case 3:  // Find Contact by Phone Number
-                g_print("Enter phone number to search: ");
-                scanf("%s", phone);
-                found_contact = find_contact_by_phone(contact_list, phone);
-                if (found_contact != NULL) {
-                    g_print("Found contact: %s, Phone: %s\n", contact_get_name(found_contact), contact_get_phone_number(found_contact));
-                } else {
-                    g_print("Contact with phone number %s not found.\n", phone);
-                }
-                break;
 
-            case 4:  // Delete Contact
-                g_print("Enter name to delete: ");
-                scanf("%s", name);
-                delete_contact(&contact_list, name);
-                break;
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_container_add(GTK_CONTAINER(window), box);
 
-            case 5:  // Display All Contacts
-                display_contacts(contact_list);
-                break;
+    name_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(name_entry), "Enter Name");
+    phone_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(phone_entry), "Enter Phone Number");
 
-            case 6:  // Save Contacts to File
-                save_contacts_to_file(contact_list, "contacts.csv");
-                break;
+  
+    GtkWidget *add_button = gtk_button_new_with_label("Add Contact");
+    g_signal_connect(add_button, "clicked", G_CALLBACK(on_add_contact), NULL);
 
-            case 7:  // Exit
-                g_list_free_full(contact_list, g_object_unref);
-                g_print("Exiting program.\n");
-                return 0;
 
-            default:
-                g_print("Invalid choice! Please try again.\n");
-        }
-    }
+    listbox = gtk_list_box_new();
+    gtk_box_pack_start(GTK_BOX(box), name_entry, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), phone_entry, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), add_button, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), listbox, TRUE, TRUE, 0);
+
+
+    GtkWidget *save_button = gtk_button_new_with_label("Save Contacts");
+    g_signal_connect(save_button, "clicked", G_CALLBACK(on_save_contacts), NULL);
+    gtk_box_pack_start(GTK_BOX(box), save_button, FALSE, FALSE, 0);
+
+
+    GtkWidget *delete_button = gtk_button_new_with_label("Delete Selected");
+    g_signal_connect(delete_button, "clicked", G_CALLBACK(on_delete_contact), NULL);
+    gtk_box_pack_start(GTK_BOX(box), delete_button, FALSE, FALSE, 0);
+
+
+    refresh_contact_list();
+
+    gtk_widget_show_all(window);
+    gtk_main();
 
     return 0;
 }

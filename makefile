@@ -1,23 +1,20 @@
-CC = gcc
-CFLAGS = -Wall -g `pkg-config --cflags glib-2.0 gobject-2.0`
-LDFLAGS = `pkg-config --libs glib-2.0 gobject-2.0`
-SRC_DIR = src
-BUILD_DIR = build
-TARGET = $(BUILD_DIR)/contact_manager
+CC=gcc
+CFLAGS=`pkg-config --cflags gtk+-3.0 glib-2.0 gobject-2.0`
+LIBS=`pkg-config --libs gtk+-3.0 glib-2.0 gobject-2.0`
 
-SRCS = $(wildcard $(SRC_DIR)/*.c) 
-OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
+SRC=src/main.c src/contact.c src/storage.c
+OBJ=build/main.o build/contact.o build/storage.o
+EXEC=contact_manager
 
-all: $(TARGET)
+all: $(EXEC)
 
-$(TARGET): $(OBJS)
-	$(CC) -o $@ $^ $(LDFLAGS)
+$(EXEC): $(OBJ)
+	$(CC) -o $@ $^ $(LIBS)
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+# Compile each source file into object file in the build directory
+build/%.o: src/%.c
+	mkdir -p build
+	$(CC) -c $< -o $@ $(CFLAGS)
 
 clean:
-	rm -rf $(BUILD_DIR)/*
-
-.PHONY: all clean
-
+	rm -rf build $(EXEC)
